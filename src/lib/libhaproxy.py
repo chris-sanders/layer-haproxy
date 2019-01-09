@@ -79,7 +79,7 @@ class ProxyHelper():
             frontend.add_usebackend(use_backend)
         if config['mode'] == 'tcp':
             if not self.available_for_tcp(frontend, backend_name):
-                return({"cfg_good": False, "msg": "Frontend already in use can not setup tcp mode"})
+                return({"cfg_good": False, "msg": "Frontend already in use, can not set up tcp mode"})
 
             mode_config = Config.Config('mode tcp', '')
             frontend.add_config(mode_config)
@@ -446,7 +446,7 @@ class ProxyHelper():
             hookenv.open_port(port)
 
     def release_upnp(self):
-        hookenv.log("Releaseing all upnp port requests", "INFO")
+        hookenv.log("Releasing all upnp port requests", "INFO")
         # check that open ports is accurate
         self.update_ports()
         # send upnp for ports even if they were already open

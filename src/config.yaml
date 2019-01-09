@@ -1,7 +1,7 @@
 options:
   version:
     type: string
-    default: "1.7"
+    default: "1.9"
     description: "Version of HAProxy to install"
   enable-stats:
     type: boolean
@@ -34,7 +34,7 @@ options:
   upnp-renew-interval:
     type: string
     default: '@hourly'
-    description: "Cron interval to rewnew upnp, if in use"
+    description: "Cron interval to renew upnp, if in use"
   destination-https-rewrite:
     type: boolean
     default: True
@@ -42,4 +42,4 @@ options:
   enable-https-redirect:
     type: boolean
     default: True
-    description: "Redirect http requets with no explicit backend to https"
+    description: "Redirect http requests with no explicit backend to https"
