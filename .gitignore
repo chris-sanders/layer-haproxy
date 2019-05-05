@@ -5,3 +5,5 @@ VERSION
 *__pycache__/
 *.pyc
 repo-info
+.coverage
+report

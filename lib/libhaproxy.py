@@ -51,6 +51,13 @@ class ProxyHelper():
             names.append((remote_unit, backend_name))
         return names
 
+    def gen_httpchk(self, urlbase=None, httpchk=None):
+            if httpchk:
+                return 'httpchk {}'.format(httpchk)
+            else:
+                return 'httpchk GET {} HTTP/1.0'.format(
+                       urlbase or '/')
+
     def process_configs(self, configs):
         ''' Note this requires a remote unit '''
         for names, config in zip(self.get_config_names(configs), configs):
@@ -173,8 +180,10 @@ class ProxyHelper():
                 # Add httpchk option if not present
                 if config['group_id']:
                     httpchk_found = False
-                    httpchk = 'httpchk GET {} HTTP/1.0'.format(
-                        config['urlbase'] or '/')
+                    httpchk = self.gen_httpchk(
+                        config['urlbase'],
+                        config['httpchk']
+                    )
                     for test_option in backend.options():
                         if httpchk in test_option.keyword:
                             httpchk_found = True

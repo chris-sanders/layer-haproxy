@@ -91,6 +91,7 @@ class TestLibhaproxy():
         config['rewrite-path'] = True
         config['acl-local'] = True
         config['urlbase'] = '/mock6'
+        config['httpchk'] = 'GET / HTTP/1.1'
         assert ph.process_configs([config])['cfg_good'] is True
         monkeypatch.setattr('libhaproxy.hookenv.remote_unit', lambda: 'unit-mock/7')
         assert ph.process_configs([config])['cfg_good'] is True
@@ -120,6 +121,7 @@ class TestLibhaproxy():
         config['ssl-verify'] = False
         config['external_port'] = 443
         config['check'] = False
+        config['httpchk'] = 'GET / HTTP/1.1'
         assert ph.process_configs([config])['cfg_good'] is True
         backend = ph.get_backend('unit-mock-8-0', create=False)
         forward_for_found = False
