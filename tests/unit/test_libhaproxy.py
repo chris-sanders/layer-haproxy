@@ -59,17 +59,35 @@ def test_process_configs(ph, monkeypatch, config):
     config["mode"] = "tcp"
     assert ph.process_configs([config])["cfg_good"] is False
 
+    # Successful tcp+tls on unused frontend
+    monkeypatch.setattr("libhaproxy.hookenv.remote_unit", lambda: "unit-mock/2")
+    config["external_port"] = 111
+    config["mode"] = "tcp+tls"
+    assert ph.process_configs([config])["cfg_good"] is True
+
+    # Fail tcp+tls on existing tcp+tls frontend
+    monkeypatch.setattr("libhaproxy.hookenv.remote_unit", lambda: "unit-mock/3")
+    config["external_port"] = 111
+    assert ph.process_configs([config])["cfg_good"] is False
+
+    # Error if http requested on existing tcp frontend
+    monkeypatch.setattr("libhaproxy.hookenv.remote_unit", lambda: "unit-mock/4")
+    config["mode"] = "http"
+    assert ph.process_configs([config])["cfg_good"] is False
+
     # Successful tcp on unused frontend
+    monkeypatch.setattr("libhaproxy.hookenv.remote_unit", lambda: "unit-mock/1")
     config["external_port"] = 90
+    config["mode"] = "tcp"
     assert ph.process_configs([config])["cfg_good"] is True
 
     # Fail tcp on existing tcp frontend
     config["external_port"] = 90
-    monkeypatch.setattr("libhaproxy.hookenv.remote_unit", lambda: "unit-mock/1.5")
+    monkeypatch.setattr("libhaproxy.hookenv.remote_unit", lambda: "unit-mock/3")
     assert ph.process_configs([config])["cfg_good"] is False
 
     # Error if http requested on existing tcp frontend
-    monkeypatch.setattr("libhaproxy.hookenv.remote_unit", lambda: "unit-mock/2")
+    monkeypatch.setattr("libhaproxy.hookenv.remote_unit", lambda: "unit-mock/4")
     config["mode"] = "http"
     assert ph.process_configs([config])["cfg_good"] is False
 
@@ -480,12 +498,18 @@ def test_upnp_cron(ph, mock_crontab):
 
 def test_enable_letsencrypt(ph, cert, mock_crontab):
     """Test enabling certbot."""
+    ph.charm_config["enable-letsencrypt"] = True
     ph.enable_letsencrypt()
     fe80 = ph.get_frontend(80, create=False)
     fe443 = ph.get_frontend(443, create=False)
+    fe111 = ph.get_frontend(111, tls=True)
+    fe90 = ph.get_frontend(90)
     # assert fe80.config_block['acls'][0].name == 'letsencrypt'
     assert fe80.usebackend("letsencrypt-backend")
     assert "mock.pem" in fe443.binds()[0].attributes[0]
+    assert len(fe80.binds()[0].attributes) == 0
+    assert "mock.pem" in fe111.binds()[0].attributes[0]
+    assert len(fe90.binds()[0].attributes) == 0
     assert fe443.acl("letsencrypt")
     assert fe443.usebackend("letsencrypt-backend")
     assert fe443.config("reqirep", "Destination:\\ https(.*) Destination:\\ http\\\\1 ")
@@ -494,28 +518,36 @@ def test_enable_letsencrypt(ph, cert, mock_crontab):
 
 def test_disable_letsencrypt(ph, cert, mock_crontab, monkeypatch, config):
     """Test disabling certbot."""
+    fe90 = ph.get_frontend(90)
+    fe111 = ph.get_frontend(111, tls=True)
     # Remove letsencrypt and all unused sections
+    ph.charm_config["enable-letsencrypt"] = True
     ph.enable_letsencrypt()
     assert ph.get_frontend(80, create=False) is not None
     assert ph.get_frontend(443, create=False) is not None
     assert ph.get_backend("letsencrypt-backend", create=False) is not None
+    ph.charm_config["enable-letsencrypt"] = False
     ph.disable_letsencrypt()
     assert ph.get_frontend(80, create=False) is None
     assert ph.get_frontend(443, create=False) is None
     assert ph.get_backend("letsencrypt-backend", create=False) is None
 
     # Remove letsencrypt but not other frontends
+    ph.charm_config["enable-letsencrypt"] = True
     ph.enable_letsencrypt()
     monkeypatch.setattr("libhaproxy.hookenv.remote_unit", lambda: "unit-mock/0")
     ph.process_configs([config])
     monkeypatch.setattr("libhaproxy.hookenv.remote_unit", lambda: "unit-mock/1")
     config["external_port"] = 443
     ph.process_configs([config])
+    ph.charm_config["enable-letsencrypt"] = False
     ph.disable_letsencrypt()
     fe80 = ph.get_frontend(80, create=False)
     fe443 = ph.get_frontend(443, create=False)
     assert fe80.acl("unit-mock-0-0")
     assert fe80.usebackend("unit-mock-0-0")
+    assert fe111.binds()[0].attributes == []
+    assert fe90.binds()[0].attributes == []
     assert fe443.binds()[0].attributes == []
     assert fe443.acl("unit-mock-1-0")
     assert fe443.usebackend("unit-mock-1-0")

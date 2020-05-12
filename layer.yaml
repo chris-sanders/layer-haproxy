@@ -1,3 +1,4 @@
+---
 includes:
   - layer:basic
   - layer:version
@@ -8,4 +9,6 @@ includes:
 options:
   version:
     file_name: "repo-info"
+ignore:
+  - operator_requires.py
 repo: https://github.com/pirate-charmers/layer-haproxy

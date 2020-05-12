@@ -96,7 +96,10 @@ class ProxyHelper:
             self.clean_config(unit=remote_unit, backend_name=backend_name, save=False)
 
             # Get the frontend, create if not present
-            frontend = self.get_frontend(config["external_port"])
+            if config["mode"] == "tcp+tls":
+                frontend = self.get_frontend(config["external_port"], tls=True)
+            else:
+                frontend = self.get_frontend(config["external_port"])
 
             # urlbase use to accept / now they are added automatically
             # to avoid errors strip it from old configs
@@ -141,7 +144,7 @@ class ProxyHelper:
                 )
                 frontend.add_usebackend(use_backend)
 
-            if config["mode"] == "tcp":
+            if config["mode"] == "tcp" or config["mode"] == "tcp+tls":
                 if not self.available_for_tcp(frontend, backend_name):
                     return {
                         "cfg_good": False,
@@ -456,7 +459,7 @@ class ProxyHelper:
         # Clean the config
         self.clean_config(unit=backend_name, backend_name=backend_name, save=save)
 
-    def get_frontend(self, port=None, create=True):
+    def get_frontend(self, port=None, create=True, tls=False):
         """Find the frontend for the requested port."""
         port = str(port)
         frontend = None
@@ -473,7 +476,12 @@ class ProxyHelper:
 
         if frontend is None and create:
             hookenv.log("Creating frontend for port {}".format(port), "INFO")
-            config_block = [haproxy_config.Bind("0.0.0.0", port, None)]
+            print("TLS {} LE {} Port {}".format(tls, self.charm_config.get("enable-letsencrypt"), port))
+            if tls and self.charm_config.get("enable-letsencrypt"):
+                print("Found a TCP+TLS frontend")
+                config_block = [haproxy_config.Bind("0.0.0.0", port, ["ssl crt {}".format(self.cert_file)])]
+            else:
+                config_block = [haproxy_config.Bind("0.0.0.0", port, None)]
             frontend = haproxy_config.Frontend(
                 "relation-{}".format(port), "0.0.0.0", port, config_block
             )
@@ -712,6 +720,11 @@ class ProxyHelper:
         self.clean_config(
             unit="letsencrypt", backend_name="letsencrypt-backend", save=save
         )
+
+        # Remove ssl crt binds
+        for fe in self.proxy_config.frontends:
+            fe.binds()[0].attributes[:] = []  # Remove ssl cert attribute
+
         self.remove_cert_cron()
 
     def merge_letsencrypt_cert(self):
