@@ -88,6 +88,9 @@ async def test_charm_upgrade(model, app):
     if app.name.endswith("local"):
         pytest.skip("No need to upgrade the local deploy")
     unit = app.units[0]
+    # check if version is on the charm store
+    if app.status == 'error':
+        pytest.skip("Not possible to upgrade errored canary versions")
     await model.block_until(lambda: unit.agent_status == "idle")
     subprocess.check_call(
         [
